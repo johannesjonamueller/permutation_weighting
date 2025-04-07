@@ -279,3 +279,166 @@ def test_pw_torch_not_available():
     finally:
         # Restore original value
       setattr(estimator, 'TORCH_AVAILABLE', original_value)
+
+
+def test_neural_network_replicates():
+    """Test that neural network models use fewer replicates automatically"""
+    np.random.seed(42)
+    n = 100
+    X = np.random.normal(size=(n, 2))
+    propensity = 1 / (1 + np.exp(-X[:, 0] + 0.5 * X[:, 1]))
+    A = np.random.binomial(1, propensity, size=n)
+
+    # Create a spy to monitor the number of model trainings
+    train_count = [0]  # Use list to allow modification in nested function
+
+    # Original trainer factory
+    from permutation_weighting.models.sgd_trainer_factory import neural_net_factory
+    original_factory = neural_net_factory
+
+    # Create a wrapper to count calls
+    def counting_factory(params=None):
+        original = original_factory(params)
+
+        def wrapper(data):
+            train_count[0] += 1
+            return original(data)
+
+        return wrapper
+
+    # Patch the factory method
+    import permutation_weighting.estimator as estimator
+    original_get_trainer = estimator.get_trainer_factory
+    estimator.neural_net_factory = counting_factory
+
+    try:
+        # Run PW with neural network and 10 requested replicates
+        result = PW(
+            A=A,
+            X=X,
+            classifier='neural_net',
+            use_sgd=True,
+            num_replicates=10
+        )
+
+        # Should only train once despite requesting 10 replicates
+        assert train_count[0] == 1, f"Expected 1 training run, got {train_count[0]}"
+        assert result['call']['num_replicates'] == 10, "Original replicate count should be preserved in call info"
+
+        # Compare with standard logistic that should use all replicates
+        train_count[0] = 0
+        result_logit = PW(
+            A=A,
+            X=X,
+            classifier='logit',
+            num_replicates=5
+        )
+
+        assert train_count[0] == 0, "Logit shouldn't use the counting wrapper"
+
+    finally:
+        # Restore original function
+        estimator.neural_net_factory = original_factory
+
+    print("Neural network replicate reduction test passed!")
+
+
+def test_convergence_info_communication():
+    """Test that convergence information is properly communicated"""
+    # Generate simple data
+    np.random.seed(42)
+    n = 100
+    X = np.random.normal(size=(n, 2))
+    A = np.random.binomial(1, 0.5, size=n)
+
+    # Create a custom trainer that adds convergence info
+    def custom_trainer_factory(data):
+        # Simple logistic regression
+        from sklearn.linear_model import LogisticRegression
+
+        # Extract data
+        X_train = np.column_stack([
+            data['observed']['A'],
+            data['observed']['X']
+        ])
+        y_train = np.zeros(len(data['observed']['A']))
+
+        X_perm = np.column_stack([
+            data['permuted']['A'],
+            data['permuted']['X']
+        ])
+        y_perm = np.ones(len(data['permuted']['A']))
+
+        # Combined dataset
+        X_combined = np.vstack([X_train, X_perm])
+        y_combined = np.concatenate([y_train, y_perm])
+
+        # Train model
+        model = LogisticRegression()
+        model.fit(X_combined, y_combined)
+
+        # Create weight function
+        def weight_func(A_new, X_new):
+            # Predict on new data
+            X_eval = np.column_stack([A_new, X_new])
+            probs = model.predict_proba(X_eval)[:, 1]
+            weights = probs / (1 - probs)
+            return weights
+
+        # Add convergence info
+        weight_func.convergence_info = {
+            'converged': True,
+            'iterations': 42,
+            'best_loss': 0.123,
+            'final_loss': 0.234,
+            'custom_metric': 0.987
+        }
+
+        return weight_func
+
+    # Patch get_trainer_factory to return our custom factory
+    import permutation_weighting.estimator as estimator
+    original_get_trainer = estimator.get_trainer_factory
+
+    def mock_get_trainer(classifier, params=None):
+        return custom_trainer_factory
+
+    estimator.get_trainer_factory = mock_get_trainer
+
+    try:
+        # Run PW with our custom trainer
+        result = PW(
+            A=A,
+            X=X,
+            classifier='custom',  # Name doesn't matter, we've patched the factory
+            num_replicates=3,
+            estimand_params={'bootstrap': True}  # Add this to force multiple replicates
+        )
+
+        # Check if convergence info was captured and aggregated
+        assert 'convergence_info' in result, "Convergence info should be present"
+        assert 'iterations' in result['convergence_info'], "Should capture iterations"
+        assert result['convergence_info']['iterations'] == 42, "Should use max iterations from factories"
+
+        assert 'details' in result['convergence_info'], "Should capture detailed convergence info"
+        for detail in result['convergence_info']['details']:
+            assert 'final_loss' in detail, "Each detail record should include final_loss"
+
+
+        # Check if custom metric was preserved
+        assert result['convergence_info']['details'][0]['custom_metric'] == 0.987, "Should preserve custom metrics"
+
+        # Check if losses were captured
+        assert 'losses' in result['convergence_info'], "Should capture loss values"
+        assert len(result['convergence_info']['losses']) == 3, "Should have 3 loss values"
+        assert result['convergence_info']['losses'][0] == 0.234, "Should capture final_loss values"
+
+        # Check if best_loss was captured
+        assert 'best_loss' in result['convergence_info'], "Should capture best_loss"
+        assert result['convergence_info']['best_loss'] == 0.123, "Should use min best_loss from factories"
+
+    finally:
+        # Restore original function
+        estimator.get_trainer_factory = original_get_trainer
+
+    print("Convergence info communication test passed!")

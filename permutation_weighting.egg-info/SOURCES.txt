@@ -18,3 +18,10 @@ permutation_weighting/models/__init__.py
 permutation_weighting/models/sgd_trainer_factory.py
 permutation_weighting/models/torch_trainer_factory.py
 permutation_weighting/models/trainer_factory.py
+tests/test_data_factory.py
+tests/test_data_validation.py
+tests/test_estimator.py
+tests/test_evaluator.py
+tests/test_sgd_trainer_factory.py
+tests/test_torch_trainer_factory.py
+tests/test_trainer_factory.py

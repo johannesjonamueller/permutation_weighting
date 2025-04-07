@@ -7,13 +7,13 @@ import numpy as np
 from .data.data_validation import check_data, check_eval_data, is_data_binary
 from .data.data_factory import get_data_factory, get_binary_data_factory
 from .models.trainer_factory import get_trainer_factory
-from .models.sgd_trainer_factory import sgd_logit_factory, neural_net_factory, minibatch_trainer_factory
+from .models.sgd_trainer_factory import sgd_logit_factory, neural_net_factory, minibatch_permute_trainer_factory
 from .evaluator import WeightsPassthrough, evaluator_factory
 
 # Import PyTorch trainers conditionally to avoid errors if PyTorch is not installed
 try:
     from .models.torch_trainer_factory import (
-        torch_trainer_factory, logistic_torch_factory,
+        torch_trainer_factory, minibatch_permute_torch_factory, logistic_torch_factory,
         mlp_torch_factory, resnet_torch_factory
     )
     TORCH_AVAILABLE = True
@@ -22,7 +22,7 @@ except ImportError:
 
 
 def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
-       estimand_params=None, eval_data=None, num_replicates=100,
+       estimand_params=None, eval_data=None,  num_replicates=100,
        evaluator_names=None, use_sgd=False, use_torch=False, batch_size=None):
     """
     Estimates non-parametric balancing weights for observational causal inference
@@ -107,12 +107,19 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
     for evaluator_name in evaluator_names:
         evaluators.append(evaluator_factory(evaluator_name))
 
+
     # Get trainer factory
     if use_torch:
         if not TORCH_AVAILABLE:
             raise ImportError("PyTorch is not available. Install with 'pip install torch'")
 
-        if classifier == 'logistic':
+        if batch_size is not None:
+            # Use the batch-then-permute approach
+            trainer_factory = minibatch_permute_torch_factory(
+                classifier if classifier != 'torch_custom' else classifier_params.get('model_type', 'logistic'),
+                classifier_params
+            )
+        elif classifier == 'logistic':
             trainer_factory = logistic_torch_factory(classifier_params)
         elif classifier == 'mlp':
             trainer_factory = mlp_torch_factory(classifier_params)
@@ -124,7 +131,8 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
             raise ValueError(f"Unknown PyTorch classifier: {classifier}")
     elif use_sgd:
         if batch_size is not None:
-            trainer_factory = minibatch_trainer_factory(classifier, classifier_params, batch_size)
+            # Use the batch-then-permute approach
+            trainer_factory = minibatch_permute_trainer_factory(classifier, classifier_params, batch_size)
         elif classifier == 'logit':
             trainer_factory = sgd_logit_factory(classifier_params)
         elif classifier == 'neural_net':
@@ -138,17 +146,40 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
     eval_list = []
     convergence_info = {'converged': True, 'iterations': 0}
 
-    for _ in range(num_replicates):
+    effective_replicates = 1 if (use_torch or classifier in ['neural_net', 'mlp', 'resnet']) else num_replicates
+    if effective_replicates < num_replicates:
+        print(f"Using {effective_replicates} replicate(s) for {classifier} instead of {num_replicates}")
+
+    for _ in range(effective_replicates):
         data = train_data_factory()
         edata = eval_data_factory()
         model = trainer_factory(data)
 
-        # Capture convergence information if available
+        # Capture and store more detailed convergence information
         if hasattr(model, 'convergence_info'):
             rep_convergence = getattr(model, 'convergence_info', {})
+
+            # Initialize detailed convergence tracking if not present
+            if 'details' not in convergence_info:
+                convergence_info['details'] = []
+
+            # Store this replicate's convergence info
+            convergence_info['details'].append(rep_convergence)
+
             # Update global convergence info
             convergence_info['converged'] = convergence_info['converged'] and rep_convergence.get('converged', True)
             convergence_info['iterations'] = max(convergence_info['iterations'], rep_convergence.get('iterations', 0))
+
+            # Track losses if available
+            if 'final_loss' in rep_convergence:
+                if 'losses' not in convergence_info:
+                    convergence_info['losses'] = []
+                convergence_info['losses'].append(rep_convergence['final_loss'])
+
+            # Track best loss across all replicates
+            if 'best_loss' in rep_convergence:
+                if 'best_loss' not in convergence_info or rep_convergence['best_loss'] < convergence_info['best_loss']:
+                    convergence_info['best_loss'] = rep_convergence['best_loss']
 
         ev = {"train": {}, "eval": {}}
         for evaluator in evaluators:
@@ -189,6 +220,14 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
         'use_torch': use_torch,
         'batch_size': batch_size
     }
+
+    # Make sure convergence_info always has a 'details' key before returning
+    if 'details' not in convergence_info:
+        convergence_info['details'] = [{
+            'iterations': convergence_info.get('iterations', 0),
+            'converged': convergence_info.get('converged', True)
+        }]
+
     results['convergence_info'] = convergence_info
 
     return results

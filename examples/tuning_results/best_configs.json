@@ -63,9 +63,9 @@
         "hidden_dims": NaN
     },
     "Neural Network": {
-        "ate_error": 14.607466561162147,
-        "in_sample_logloss": 0.6631362951609298,
-        "out_sample_logloss": 0.7077087684696128,
+        "ate_error": 15.569733554906918,
+        "in_sample_logloss": 0.6685765256521253,
+        "out_sample_logloss": 0.6754397839730067,
         "C": NaN,
         "penalty": NaN,
         "solver": NaN,
@@ -86,9 +86,9 @@
         "hidden_dims": NaN
     },
     "PyTorch Logistic": {
-        "ate_error": 2.024394344012683,
-        "in_sample_logloss": 0.7275314331054688,
-        "out_sample_logloss": 0.7246705293655396,
+        "ate_error": 1.8086343067047779,
+        "in_sample_logloss": 0.7269757986068726,
+        "out_sample_logloss": 0.725247323513031,
         "C": NaN,
         "penalty": NaN,
         "solver": NaN,
@@ -107,14 +107,14 @@
         "hidden_dims": NaN
     },
     "PyTorch MLP": {
-        "ate_error": 0.5167532959372806,
-        "in_sample_logloss": 0.7243267893791199,
-        "out_sample_logloss": 0.7317174077033997,
+        "ate_error": 0.3621607409174941,
+        "in_sample_logloss": 0.7227330207824707,
+        "out_sample_logloss": 0.7335850596427917,
         "C": NaN,
         "penalty": NaN,
         "solver": NaN,
         "n_estimators": NaN,
-        "learning_rate": 0.001,
+        "learning_rate": 0.01,
         "max_depth": NaN,
         "loss": NaN,
         "alpha": NaN,
@@ -125,6 +125,6 @@
         "max_iter": NaN,
         "l2_reg": 0.0001,
         "epochs": 50.0,
-        "hidden_dims": "[16, 8]"
+        "hidden_dims": "[16]"
     }
 }
