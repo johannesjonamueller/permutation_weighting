@@ -2,48 +2,48 @@
 
 ## Time Complexity Analysis
 
-Method | Time Complexity (slope) | Average Time (n=1500)
+Method | Time Complexity (slope) | Average Time (n=5000)
 --- | --- | ---
-Unweighted | 0.10963153593718246 | 0.0000
-IPSW-GLM | 0.23613636548189196 | 0.0010
-IPSW-GBM | 1.2358418177249557 | 0.1662
-CBPS | 0.37165115816800687 | 0.0009
-SBW | 1.9759266849558204 | 0.0221
-PW-GLM | -0.9337364799782216 | 0.8369
-PW-Boosting | 1.024531119801122 | 15.2557
-PW-SGD-Logit | 0.4882396442606255 | 0.2295
-PW-Neural | 1.779496333583649 | 0.2365
-PW-Batch-SGD | 0.22687109857869436 | 0.0410
-PW-Torch-MLP | 0.9620622875352718 | 32.6992
-PW-Batch-Torch | 0.06742924979335195 | 0.1944
+Unweighted | -0.09099907489897298 | 0.0000
+IPSW-GLM | 3.1691920047979596 | 0.0296
+IPSW-GBM | 1.223643206672274 | 0.8574
+CBPS | 3.132060603244724 | 0.0243
+SBW | -0.4152510648724706 | 0.0791
+PW-GLM | 1.2583898101652327 | 6.3070
+PW-Boosting | 1.1025339539979302 | 79.1365
+PW-SGD-Logit | 1.407526756152739 | 0.0589
+PW-Neural | 1.3053546679829926 | 1.6452
+PW-Batch-SGD | 0.7374719454192079 | 0.1175
+PW-Torch-MLP | 0.9077686498682302 | 155.3911
+PW-Batch-Torch | 0.9265426897593971 | 0.9216
 
 ## Performance by Method Type
 
 ### Average RMSE
 
-Method Type | Average RMSE (n=1500)
+Method Type | Average RMSE (n=5000)
 --- | ---
-Batch Methods | 14.6398
-SGD Methods | 22.7493
-Standard Methods | 21.9142
-External Methods | 7.1124
+Batch Methods | 14.1450
+SGD Methods | 21.1869
+Standard Methods | 20.9298
+External Methods | 6.0516
 
 ### Efficiency (RMSE/Time)
 
 Method | RMSE | Time (s) | Efficiency
 --- | --- | --- | ---
-Unweighted | 21.8449 | 0.0000 | 995913.5164
-IPSW-GLM | 1.9032 | 0.0010 | 1928.1612
-IPSW-GBM | 7.6402 | 0.1662 | 45.9829
-CBPS | 0.3859 | 0.0009 | 415.4034
-SBW | 3.7877 | 0.0221 | 171.4274
-PW-GLM | 21.9910 | 0.8369 | 26.2783
-PW-Boosting | 21.8375 | 15.2557 | 1.4314
-PW-SGD-Logit | 23.2875 | 0.2295 | 101.4645
-PW-Neural | 22.2110 | 0.2365 | 93.9275
-PW-Batch-SGD | 21.9897 | 0.0410 | 535.7728
-PW-Torch-MLP | 23.9207 | 32.6992 | 0.7315
-PW-Batch-Torch | 7.2899 | 0.1944 | 37.5005
+Unweighted | 20.9897 | 0.0000 | 637951.2584
+IPSW-GLM | 0.1831 | 0.0296 | 6.1885
+IPSW-GBM | 4.3869 | 0.8574 | 5.1167
+CBPS | 0.5540 | 0.0243 | 22.8112
+SBW | 4.1440 | 0.0791 | 52.3865
+PW-GLM | 20.9590 | 6.3070 | 3.3231
+PW-Boosting | 20.9005 | 79.1365 | 0.2641
+PW-SGD-Logit | 20.8179 | 0.0589 | 353.2278
+PW-Neural | 21.5560 | 1.6452 | 13.1024
+PW-Batch-SGD | 20.9199 | 0.1175 | 178.1150
+PW-Torch-MLP | 21.6216 | 155.3911 | 0.1391
+PW-Batch-Torch | 7.3701 | 0.9216 | 7.9967
 
 ## Scaling with Sample Size
 
@@ -51,33 +51,33 @@ PW-Batch-Torch | 7.2899 | 0.1944 | 37.5005
 
 Sample Size | Average RMSE | Average Time (s)
 --- | --- | ---
-500 | 17.9496 | 0.1104
-1000 | 15.3829 | 0.1133
-1500 | 14.6398 | 0.1177
+1000 | 14.1712 | 0.1734
+2000 | 13.9404 | 0.2270
+5000 | 14.1450 | 0.5195
 
 ### SGD Methods
 
 Sample Size | Average RMSE | Average Time (s)
 --- | --- | ---
-500 | 23.9235 | 0.1026
-1000 | 20.7438 | 0.1516
-1500 | 22.7493 | 0.2330
+1000 | 21.8137 | 0.1306
+2000 | 19.1509 | 0.2568
+5000 | 21.1869 | 0.8521
 
 ### Standard Methods
 
 Sample Size | Average RMSE | Average Time (s)
 --- | --- | ---
-500 | 23.5826 | 3.3734
-1000 | 20.6194 | 5.6459
-1500 | 21.9142 | 8.0463
+1000 | 20.6194 | 11.1132
+2000 | 21.2548 | 15.4035
+5000 | 20.9298 | 42.7218
 
 ### External Methods
 
 Sample Size | Average RMSE | Average Time (s)
 --- | --- | ---
-500 | 9.0348 | 0.0353
-1000 | 7.7436 | 0.0225
-1500 | 7.1124 | 0.0380
+1000 | 7.7436 | 0.0579
+2000 | 7.0662 | 0.0796
+5000 | 6.0516 | 0.1981
 
 
 ## Verification of Professor's Assumptions - Binary Treatment
@@ -90,17 +90,17 @@ Comparing time growth of batch methods vs. standard methods:
 
 Sample Size | Average Time (s) | Growth Rate
 --- | --- | ---
-500 | 0.1104 | -
-1000 | 0.1133 | 1.03x
-1500 | 0.1177 | 1.04x
+1000 | 0.1734 | -
+2000 | 0.2270 | 1.31x
+5000 | 0.5195 | 2.29x
 
 **Standard Methods**
 
 Sample Size | Average Time (s) | Growth Rate
 --- | --- | ---
-500 | 3.3734 | -
-1000 | 5.6459 | 1.67x
-1500 | 8.0463 | 1.43x
+1000 | 11.1132 | -
+2000 | 15.4035 | 1.39x
+5000 | 42.7218 | 2.77x
 
 ### 2. Effectiveness of Batch-then-Permute Approach
 
@@ -108,56 +108,52 @@ Comparing RMSE of standard methods vs. batch methods:
 
 Sample Size | Standard Methods RMSE | Batch Methods RMSE | Improvement
 --- | --- | --- | ---
-500 | 23.5826 | 17.9496 | 23.89%
-1000 | 20.6194 | 15.3829 | 25.40%
-1500 | 21.9142 | 14.6398 | 33.19%
+1000 | 20.6194 | 14.1712 | 31.27%
+2000 | 21.2548 | 13.9404 | 34.41%
+5000 | 20.9298 | 14.1450 | 32.42%
 
 
 # Analysis of Methods for Continuous Treatment
 
 ## Time Complexity Analysis
 
-Method | Time Complexity (slope) | Average Time (n=1500)
+Method | Time Complexity (slope) | Average Time (n=5000)
 --- | --- | ---
-Unweighted | 0.3844236349560417 | 0.0000
-Normal-Linear | 0.10640606340494026 | 0.0005
-npCBPS | 0.216465411570968 | 0.0370
-PW-GLM | 0.8531146801636714 | 0.8151
-PW-Boosting | 1.0335680648212802 | 24.1369
-PW-SGD-Logit | 0.4597575372919773 | 0.2165
-PW-Neural | 0.5797714667078324 | 0.1834
+Unweighted | -0.08087822955727546 | 0.0000
+Normal-Linear | 2.114272529655362 | 0.0085
+npCBPS | -0.08736662805181043 | 0.0714
+PW-GLM | 0.15713317687834435 | 2.5274
+PW-Boosting | 1.0791849221666736 | 129.7882
+PW-SGD-Logit | 0.5398330449387573 | 0.0356
+PW-Neural | 1.015119800756405 | 1.0683
 PW-Batch-SGD | N/A | nan
-PW-Torch-MLP | 1.199503086140111 | 33.5716
-PW-Batch-Torch | 1.6990772715822144 | 0.2867
-PW-Torch-ResNet | 2.100530150806187 | 79.9019
-PW-Batch-Torch-ResNet | -0.24175638661032584 | 0.3013
+PW-Torch-MLP | 1.0111260230350623 | 159.7067
+PW-Batch-Torch | 0.6817224884219598 | 0.5740
 
 ## Performance by Method Type
 
 ### Average Integrated RMSE
 
-Method Type | Average Integrated RMSE (n=1500)
+Method Type | Average Integrated RMSE (n=5000)
 --- | ---
 Batch Methods | nan
-SGD Methods | 16.4655
-Standard Methods | 17.1923
-External Methods | 13.8361
+SGD Methods | 16.6465
+Standard Methods | 16.4392
+External Methods | 11.9017
 
 ### Efficiency (RMSE/Time)
 
 Method | Integrated RMSE | Time (s) | Efficiency
 --- | --- | --- | ---
-Unweighted | 17.1068 | 0.0000 | 739702.2825
-Normal-Linear | 7.2946 | 0.0005 | 14681.3114
-npCBPS | 17.1068 | 0.0370 | 462.0341
-PW-GLM | 17.2598 | 0.8151 | 21.1756
-PW-Boosting | 17.1248 | 24.1369 | 0.7095
-PW-SGD-Logit | 16.0592 | 0.2165 | 74.1663
-PW-Neural | 16.8718 | 0.1834 | 91.9810
-PW-Torch-MLP | 16.5875 | 33.5716 | 0.4941
-PW-Batch-Torch | 17.3256 | 0.2867 | 60.4327
-PW-Torch-ResNet | 18.6534 | 79.9019 | 0.2335
-PW-Batch-Torch-ResNet | 18.2495 | 0.3013 | 60.5667
+Unweighted | 16.4751 | 0.0000 | 590612.4618
+Normal-Linear | 2.7548 | 0.0085 | 323.7924
+npCBPS | 16.4751 | 0.0714 | 230.5825
+PW-GLM | 16.4882 | 2.5274 | 6.5239
+PW-Boosting | 16.3901 | 129.7882 | 0.1263
+PW-SGD-Logit | 16.7460 | 0.0356 | 470.3001
+PW-Neural | 16.5470 | 1.0683 | 15.4895
+PW-Torch-MLP | 17.1663 | 159.7067 | 0.1075
+PW-Batch-Torch | 16.3272 | 0.5740 | 28.4461
 
 ## Scaling with Sample Size
 
@@ -165,33 +161,33 @@ PW-Batch-Torch-ResNet | 18.2495 | 0.3013 | 60.5667
 
 Sample Size | Average Integrated RMSE | Average Time (s)
 --- | --- | ---
-500 | nan | nan
 1000 | nan | nan
-1500 | nan | nan
+2000 | nan | nan
+5000 | nan | nan
 
 ### SGD Methods
 
 Sample Size | Average Integrated RMSE | Average Time (s)
 --- | --- | ---
-500 | 18.6167 | 0.0945
-1000 | 17.3011 | 0.1624
-1500 | 16.4655 | 0.2000
+1000 | 19.3539 | 0.2147
+2000 | 17.2293 | 0.2216
+5000 | 16.6465 | 0.5519
 
 ### Standard Methods
 
 Sample Size | Average Integrated RMSE | Average Time (s)
 --- | --- | ---
-500 | 18.2674 | 4.2151
-1000 | 16.5907 | 8.2252
-1500 | 17.1923 | 12.4760
+1000 | 16.5907 | 12.5112
+2000 | 16.9220 | 25.2352
+5000 | 16.4392 | 66.1578
 
 ### External Methods
 
 Sample Size | Average Integrated RMSE | Average Time (s)
 --- | --- | ---
-500 | 14.1029 | 0.0060
-1000 | 12.4442 | 0.0115
-1500 | 13.8361 | 0.0125
+1000 | 12.4442 | 0.0355
+2000 | 13.0352 | 0.0262
+5000 | 11.9017 | 0.0267
 
 
 ## Verification of Professor's Assumptions - Continuous Treatment
@@ -204,17 +200,17 @@ Comparing time growth of batch methods vs. standard methods:
 
 Sample Size | Average Time (s) | Growth Rate
 --- | --- | ---
-500 | nan | -
 1000 | nan | -
-1500 | nan | -
+2000 | nan | -
+5000 | nan | -
 
 **Standard Methods**
 
 Sample Size | Average Time (s) | Growth Rate
 --- | --- | ---
-500 | 4.2151 | -
-1000 | 8.2252 | 1.95x
-1500 | 12.4760 | 1.52x
+1000 | 12.5112 | -
+2000 | 25.2352 | 2.02x
+5000 | 66.1578 | 2.62x
 
 ### 2. Effectiveness of Batch-then-Permute Approach
 
@@ -222,9 +218,9 @@ Comparing Integrated RMSE of standard methods vs. batch methods:
 
 Sample Size | Standard Methods RMSE | Batch Methods RMSE | Improvement
 --- | --- | --- | ---
-500 | 18.2674 | nan | nan%
 1000 | 16.5907 | nan | nan%
-1500 | 17.1923 | nan | nan%
+2000 | 16.9220 | nan | nan%
+5000 | 16.4392 | nan | nan%
 
 
 # Overall Conclusion
@@ -259,13 +255,13 @@ Per section 4.4 of the paper (Work Complexity for Large-Scale Learning), the the
 1. Standard methods: Time complexity should scale as O(n·log(1/ε))
 2. Stochastic methods: Time complexity should scale as O(1/ε), independent of n
 
-Empirical time complexity for standard methods (binary): O(n^0.42)
-Empirical time complexity for SGD methods (binary): O(n^0.39)
+Empirical time complexity for standard methods (binary): O(n^0.50)
+Empirical time complexity for SGD methods (binary): O(n^0.94)
 
-Empirical time complexity for standard methods (continuous): O(n^0.85)
+Empirical time complexity for standard methods (continuous): O(n^0.68)
 Empirical time complexity for SGD methods (continuous): O(n^nan)
 
-The theoretical expectation that SGD methods scale better than standard methods is ✅ confirmed by the empirical results for binary treatment.
+The theoretical expectation that SGD methods scale better than standard methods is ❌ not confirmed by the empirical results for binary treatment.
 
 The theoretical expectation that SGD methods scale better than standard methods is ❌ not confirmed by the empirical results for continuous treatment.
 
