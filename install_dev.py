@@ -36,11 +36,6 @@ def main():
         if input("Continue anyway? [y/n]: ").lower() != 'y':
             return False
 
-    # Install PyTorch
-    print("Installing PyTorch...")
-    if not run_command("pip install torch"):
-        return False
-
     # Uninstall any existing version
     print("Removing any existing package installation...")
     run_command("pip uninstall -y permutation_weighting")
@@ -56,7 +51,7 @@ def main():
         return False
 
     print("\nSetup complete!")
-    print("Try running tests with: pytest -xvs permutation_weighting/tests/")
+    print("Try running tests with: pytest -xvs tests/")
     return True
 
 

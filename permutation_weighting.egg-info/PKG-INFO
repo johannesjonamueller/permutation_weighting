@@ -1,4 +1,4 @@
-Metadata-Version: 2.2
+Metadata-Version: 2.4
 Name: permutation_weighting
 Version: 0.1.0
 Summary: A Python implementation of permutation weighting for causal inference
@@ -19,16 +19,13 @@ License-File: LICENSE
 Requires-Dist: numpy>=1.19.0
 Requires-Dist: pandas>=1.0.0
 Requires-Dist: scikit-learn>=0.24.0
-Requires-Dist: pytest>=6.0.0
 Requires-Dist: statsmodels>=0.13.0
 Requires-Dist: matplotlib>=3.3.0
 Requires-Dist: seaborn>=0.11.0
-Provides-Extra: torch
-Requires-Dist: torch>=1.9.0; extra == "torch"
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier
-Dynamic: provides-extra
+Dynamic: license-file
 Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary

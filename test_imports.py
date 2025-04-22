@@ -21,10 +21,12 @@ for p in sys.path:
 # Try importing various modules
 print("\nTesting imports:")
 try_import('permutation_weighting')
-try_import('permutation_weighting.permutation_weighting')
-try_import('permutation_weighting.permutation_weighting.models')
-try_import('permutation_weighting.permutation_weighting.models.trainer_factory')
-try_import('permutation_weighting.permutation_weighting.models.torch_trainer_factory')
+try_import('permutation_weighting.estimator')
+try_import('permutation_weighting.data_factory')
+try_import('permutation_weighting.trainer_factory')
+try_import('permutation_weighting.data_validation')
+try_import('permutation_weighting.evaluator')
+try_import('permutation_weighting.utils')
 
 # Print the package structure
 print("\nPackage structure:")
