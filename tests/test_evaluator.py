@@ -10,7 +10,7 @@ def test_weights_passthrough_evaluate():
     def model(A, X):
         return np.array([1.0, 2.0])
 
-    # Create comparison_with_r_package.ipynb data
+    # Create data
     data = {
         'observed': {
             'A': np.array([0, 1]),
@@ -51,7 +51,7 @@ def test_mse_evaluator_evaluate():
         # Return weights such that prob = weights / (1 + weights) is 0.8 for observed and 0.2 for permuted
         return np.array([4.0, 4.0])  # weights = 4 -> prob = 0.8
 
-    # Create comparison_with_r_package.ipynb data
+    # Create data
     data = {
         'observed': {
             'A': np.array([0, 1]),
@@ -68,8 +68,8 @@ def test_mse_evaluator_evaluate():
 
     # Expected MSE based on the current implementation:
     # observed: mean(0.8^2) = 0.64
-    # permuted: mean(0.8^2) = 0.64
-    # overall: (0.64 + 0.04)/2 = 0.34
+    # permuted: mean((1-0.8)^2) = mean(0.2^2) = 0.04
+    # overall: mean([0.64, 0.04]) = 0.34
     assert result == pytest.approx(0.34)
 
 
@@ -79,7 +79,7 @@ def test_logloss_evaluator_evaluate():
         # Return weights such that prob = weights / (1 + weights) is 0.8 for observed and 0.2 for permuted
         return np.array([4.0, 4.0])  # weights = 4 -> prob = 0.8
 
-    # Create comparison_with_r_package.ipynb data
+    # Create data
     data = {
         'observed': {
             'A': np.array([0, 1]),

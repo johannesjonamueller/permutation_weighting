@@ -2,28 +2,16 @@
 Main estimator for permutation weighting.
 """
 
-import numpy as np
 # Use relative imports to ensure proper module resolution
-from .data.data_validation import check_data, check_eval_data, is_data_binary
-from .data.data_factory import get_data_factory, get_binary_data_factory
-from .models.trainer_factory import get_trainer_factory
-from .models.sgd_trainer_factory import sgd_logit_factory, neural_net_factory, minibatch_permute_trainer_factory
+from .data_validation import check_data, check_eval_data, is_data_binary
+from .data_factory import get_data_factory, get_binary_data_factory
+from .trainer_factory import get_trainer_factory
 from .evaluator import WeightsPassthrough, evaluator_factory
-
-# Import PyTorch trainers conditionally to avoid errors if PyTorch is not installed
-try:
-    from .models.torch_trainer_factory import (
-        torch_trainer_factory, minibatch_permute_torch_factory, logistic_torch_factory,
-        mlp_torch_factory, resnet_torch_factory
-    )
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
 
 
 def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
-       estimand_params=None, eval_data=None,  num_replicates=100,
-       evaluator_names=None, use_sgd=False, use_torch=False, batch_size=None):
+       estimand_params=None, eval_data=None, num_replicates=100,
+       evaluator_names=None, batch_size=None):
     """
     Estimates non-parametric balancing weights for observational causal inference
     using permutation weighting.
@@ -35,7 +23,7 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
     X : array-like
         Covariate matrix
     classifier : str, default='logit'
-        Classification method ('logit', 'boosting', 'sgd_logit', 'neural_net')
+        Classification method ('logit', 'boosting', 'sgd', 'mlp')
     estimand : str, default='ATE'
         Target estimand ('ATE' or 'ATT')
     classifier_params : dict, optional
@@ -48,12 +36,8 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
         Number of replicates to use
     evaluator_names : list, optional
         Names of evaluators to use
-    use_sgd : bool, default=False
-            Whether to use SGD-based training
-    use_torch : bool, default=False
-        Whether to use PyTorch-based training
     batch_size : int, optional
-        Size of minibatches for SGD training
+        Size of minibatches for training (currently unused)
 
     Returns
     -------
@@ -68,10 +52,6 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
 
     if estimand_params is None:
         estimand_params = {}
-
-    # Make bootstrap=True the default for SGD methods
-    if use_sgd and 'bootstrap' not in estimand_params:
-        estimand_params['bootstrap'] = True
 
     if evaluator_names is None:
         evaluator_names = ['mse', 'logloss']
@@ -107,79 +87,24 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
     for evaluator_name in evaluator_names:
         evaluators.append(evaluator_factory(evaluator_name))
 
-
-    # Get trainer factory
-    if use_torch:
-        if not TORCH_AVAILABLE:
-            raise ImportError("PyTorch is not available. Install with 'pip install torch'")
-
-        if batch_size is not None:
-            # Use the batch-then-permute approach
-            trainer_factory = minibatch_permute_torch_factory(
-                classifier if classifier != 'torch_custom' else classifier_params.get('model_type', 'logistic'),
-                classifier_params
-            )
-        elif classifier == 'logistic':
-            trainer_factory = logistic_torch_factory(classifier_params)
-        elif classifier == 'mlp':
-            trainer_factory = mlp_torch_factory(classifier_params)
-        elif classifier == 'resnet':
-            trainer_factory = resnet_torch_factory(classifier_params)
-        elif classifier == 'torch_custom':
-            trainer_factory = torch_trainer_factory(classifier_params.get('model_type', 'logistic'), classifier_params)
-        else:
-            raise ValueError(f"Unknown PyTorch classifier: {classifier}")
-    elif use_sgd:
-        if batch_size is not None:
-            # Use the batch-then-permute approach
-            trainer_factory = minibatch_permute_trainer_factory(classifier, classifier_params, batch_size)
-        elif classifier == 'logit':
-            trainer_factory = sgd_logit_factory(classifier_params)
-        elif classifier == 'neural_net':
-            trainer_factory = neural_net_factory(classifier_params)
-        else:
-            raise ValueError(f"Unknown SGD classifier: {classifier}")
-    else:
-        trainer_factory = get_trainer_factory(classifier, classifier_params)
+    # Get trainer factory - now pass A to determine if treatment is binary
+    trainer_factory = get_trainer_factory(classifier, classifier_params, A)
 
     # Run replicates
     eval_list = []
     convergence_info = {'converged': True, 'iterations': 0}
 
-    effective_replicates = 1 if (use_torch or classifier in ['neural_net', 'mlp', 'resnet']) else num_replicates
-    if effective_replicates < num_replicates:
-        print(f"Using {effective_replicates} replicate(s) for {classifier} instead of {num_replicates}")
-
-    for _ in range(effective_replicates):
+    for _ in range(num_replicates):
         data = train_data_factory()
         edata = eval_data_factory()
         model = trainer_factory(data)
 
-        # Capture and store more detailed convergence information
+        # Capture convergence information if available
         if hasattr(model, 'convergence_info'):
             rep_convergence = getattr(model, 'convergence_info', {})
-
-            # Initialize detailed convergence tracking if not present
-            if 'details' not in convergence_info:
-                convergence_info['details'] = []
-
-            # Store this replicate's convergence info
-            convergence_info['details'].append(rep_convergence)
-
             # Update global convergence info
             convergence_info['converged'] = convergence_info['converged'] and rep_convergence.get('converged', True)
             convergence_info['iterations'] = max(convergence_info['iterations'], rep_convergence.get('iterations', 0))
-
-            # Track losses if available
-            if 'final_loss' in rep_convergence:
-                if 'losses' not in convergence_info:
-                    convergence_info['losses'] = []
-                convergence_info['losses'].append(rep_convergence['final_loss'])
-
-            # Track best loss across all replicates
-            if 'best_loss' in rep_convergence:
-                if 'best_loss' not in convergence_info or rep_convergence['best_loss'] < convergence_info['best_loss']:
-                    convergence_info['best_loss'] = rep_convergence['best_loss']
 
         ev = {"train": {}, "eval": {}}
         for evaluator in evaluators:
@@ -216,18 +141,8 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
         'classifier_params': classifier_params,
         'estimand_params': estimand_params,
         'num_replicates': num_replicates,
-        'use_sgd': use_sgd,
-        'use_torch': use_torch,
         'batch_size': batch_size
     }
-
-    # Make sure convergence_info always has a 'details' key before returning
-    if 'details' not in convergence_info:
-        convergence_info['details'] = [{
-            'iterations': convergence_info.get('iterations', 0),
-            'converged': convergence_info.get('converged', True)
-        }]
-
     results['convergence_info'] = convergence_info
 
     return results

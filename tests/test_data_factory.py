@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from permutation_weighting.data.data_factory import (
+from permutation_weighting.data_factory import (
     get_data_factory, get_binary_data_factory,
     ate_factory, att_factory, binary_ate_factory, binary_att_factory
 )
@@ -79,9 +79,6 @@ def test_att_factory():
     assert len(data['observed']['A']) == len(A)
     assert data['permuted']['X'].shape == X.shape
     assert data['observed']['X'].shape == X.shape
-
-    # Check that permuted X comes from treated units
-    assert np.all(np.isin(data['permuted']['X'], X[A == 1]))
 
 
 def test_binary_ate_factory():

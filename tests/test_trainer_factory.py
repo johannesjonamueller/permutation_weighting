@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
-from permutation_weighting.models.trainer_factory import (
+from permutation_weighting.trainer_factory import (
     get_trainer_factory, construct_df, construct_eval_df,
-    logit_factory, boosting_factory
+    logit_factory, boosting_factory, sgd_factory, mlp_factory
 )
 
 
@@ -13,7 +13,7 @@ def test_get_trainer_factory_unknown_classifier():
 
 
 def test_construct_df():
-    # Create comparison_with_r_package.ipynb data
+    # Create test data
     data = {
         'permuted': {
             'C': 1,
@@ -70,7 +70,7 @@ def test_construct_eval_df():
 
 
 def test_logit_factory():
-    # Create comparison_with_r_package.ipynb data
+    # Create test data
     data = {
         'permuted': {
             'C': 1,
@@ -83,8 +83,6 @@ def test_logit_factory():
             'X': np.array([[5, 6], [7, 8]])
         }
     }
-
-    # Make predictions highly separable for testing
 
     # Get trainer
     trainer = logit_factory()
@@ -102,7 +100,7 @@ def test_logit_factory():
 
 
 def test_boosting_factory():
-    # Create comparison_with_r_package.ipynb data
+    # Create test data
     data = {
         'permuted': {
             'C': 1,
@@ -129,3 +127,74 @@ def test_boosting_factory():
     # Check weights
     assert len(weights) == 2
     assert np.all(weights >= 0)  # Weights should be non-negative
+
+
+def test_sgd_factory():
+    # Create test data with more samples to support validation split
+    data = {
+        'permuted': {
+            'C': 1,
+            'A': np.array([0, 0, 1, 1, 0, 1]),
+            'X': np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12]])
+        },
+        'observed': {
+            'C': 0,
+            'A': np.array([0, 0, 1, 1, 0, 1]),
+            'X': np.array([[13, 14], [15, 16], [17, 18], [19, 20], [21, 22], [23, 24]])
+        }
+    }
+
+    # Get trainer with validation disabled or smaller validation fraction
+    trainer = sgd_factory({'early_stopping': False})
+    model = trainer(data)
+
+    # Test weight computation
+    A = np.array([0, 1])
+    X = np.array([[1, 2], [3, 4]])
+
+    weights = model(A, X)
+
+    # Check weights
+    assert len(weights) == 2
+    assert np.all(weights >= 0)  # Weights should be non-negative
+
+    # Check convergence info
+    assert hasattr(model, 'convergence_info')
+    assert 'converged' in model.convergence_info
+    assert 'iterations' in model.convergence_info
+
+
+def test_mlp_factory():
+    # Create test data with more samples to support validation split
+    data = {
+        'permuted': {
+            'C': 1,
+            'A': np.array([0, 0, 1, 1, 0, 1]),
+            'X': np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12]])
+        },
+        'observed': {
+            'C': 0,
+            'A': np.array([0, 0, 1, 1, 0, 1]),
+            'X': np.array([[13, 14], [15, 16], [17, 18], [19, 20], [21, 22], [23, 24]])
+        }
+    }
+
+    # Get trainer with validation disabled or smaller validation fraction
+    trainer = mlp_factory({'early_stopping': False})
+    model = trainer(data)
+
+
+    # Test weight computation
+    A = np.array([0, 1])
+    X = np.array([[1, 2], [3, 4]])
+
+    weights = model(A, X)
+
+    # Check weights
+    assert len(weights) == 2
+    assert np.all(weights >= 0)  # Weights should be non-negative
+
+    # Check convergence info
+    assert hasattr(model, 'convergence_info')
+    assert 'converged' in model.convergence_info
+    assert 'iterations' in model.convergence_info

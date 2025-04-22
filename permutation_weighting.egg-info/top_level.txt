@@ -1,1 +1,4 @@
+examples
+legacy
 permutation_weighting
+tests

@@ -19,17 +19,13 @@ License-File: LICENSE
 Requires-Dist: numpy>=1.19.0
 Requires-Dist: pandas>=1.0.0
 Requires-Dist: scikit-learn>=0.24.0
-Requires-Dist: pytest>=6.0.0
 Requires-Dist: statsmodels>=0.13.0
 Requires-Dist: matplotlib>=3.3.0
 Requires-Dist: seaborn>=0.11.0
-Provides-Extra: torch
-Requires-Dist: torch>=1.9.0; extra == "torch"
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier
 Dynamic: license-file
-Dynamic: provides-extra
 Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary

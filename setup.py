@@ -12,14 +12,10 @@ setup(
         "numpy>=1.19.0",
         "pandas>=1.0.0",
         "scikit-learn>=0.24.0",
-        "pytest>=6.0.0",
         "statsmodels>=0.13.0",
         "matplotlib>=3.3.0",
         "seaborn>=0.11.0",
     ],
-    extras_require={
-        "torch": ["torch>=1.9.0"],
-    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",

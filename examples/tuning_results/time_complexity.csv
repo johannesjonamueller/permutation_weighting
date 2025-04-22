@@ -1,7 +1,0 @@
-Group,Method,Empirical Complexity,Time at n=100,Time at n=max,Ratio max/100
-Standard Methods,PW-GLM,O(n^0.77),N/A,42.00447702407837,N/A
-Standard Methods,PW-Boosting,O(n^1.06),N/A,80.31859707832336,N/A
-SGD Methods,PW-SGD-Logit,O(n^0.98),N/A,0.03357076644897461,N/A
-SGD Methods,PW-Neural,O(n^0.92),N/A,1.1643869876861572,N/A
-Batch Methods,PW-Batch-SGD,O(n^-0.02),N/A,0.05513405799865723,N/A
-Batch Methods,PW-Batch-Torch,O(n^0.89),N/A,0.974445104598999,N/A

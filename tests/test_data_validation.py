@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from permutation_weighting.data.data_validation import (
+from permutation_weighting.data_validation import (
     check_data, check_data_for_att, check_eval_data, is_data_binary
 )
 
