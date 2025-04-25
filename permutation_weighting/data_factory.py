@@ -81,24 +81,72 @@ def get_binary_data_factory(A, X, estimand, params=None):
         raise ValueError(f'Unknown estimand: {estimand}')
 
 
+# def ate_factory(A, X, params=None):
+#     """
+#     Factory for ATE estimand
+#
+#     Parameters
+#     ----------
+#     A : array-like
+#         Treatment variable
+#     X : array-like
+#         Covariate matrix
+#     params : dict, optional
+#         Additional parameters
+#
+#     Returns
+#     -------
+#     function
+#         A function that generates balanced datasets for ATE
+#     """
+#     if params is None:
+#         params = {}
+#
+#     bootstrap = params.get('bootstrap', True)
+#     N = len(A)
+#
+#     def factory():
+#         if bootstrap:
+#             # # Generate bootstrap indices
+#             # idx = np.random.choice(N, N, replace=True)
+#             #
+#             # # For permuted data, independently sample treatment and covariates
+#             # # IMPORTANT FIX FOR CONTINUOUS TREATMENTS: use random permutation for pA
+#             # perm_idx = np.random.permutation(N)
+#             # pA = A[perm_idx]
+#             # pX = X[idx]
+#             #
+#             # # For observed data, use same bootstrap indices
+#             # oA = A[idx]
+#             # oX = X[idx]
+#             #if bootstrap:
+#         # Create different indices for different parts
+#             p_idx = np.random.choice(N, N, replace=True)  # For permuted X
+#             a_idx = np.random.choice(N, N, replace=True)  # For permuted A
+#             o_idx = np.random.choice(N, N, replace=True)  # For observed data
+#
+#             # Use different random permutations
+#             perm_idx = np.random.permutation(N)
+#             pA = A[perm_idx][a_idx]  # Permute then bootstrap
+#             pX = X[p_idx]
+#             oA = A[o_idx]
+#             oX = X[o_idx]
+#         else:
+#             # Non-bootstrap version
+#             perm_idx = np.random.permutation(N)
+#             idx = np.random.permutation(N)
+#             pA = A[perm_idx]
+#             pX = X[idx]
+#             oA = A[idx]
+#             oX = X[idx]
+#
+#         return {
+#             'permuted': {'C': 1, 'A': pA, 'X': pX},
+#             'observed': {'C': 0, 'A': oA, 'X': oX}
+#         }
+#
+#     return factory
 def ate_factory(A, X, params=None):
-    """
-    Factory for ATE estimand
-
-    Parameters
-    ----------
-    A : array-like
-        Treatment variable
-    X : array-like
-        Covariate matrix
-    params : dict, optional
-        Additional parameters
-
-    Returns
-    -------
-    function
-        A function that generates balanced datasets for ATE
-    """
     if params is None:
         params = {}
 
@@ -107,38 +155,33 @@ def ate_factory(A, X, params=None):
 
     def factory():
         if bootstrap:
-            # # Generate bootstrap indices
-            # idx = np.random.choice(N, N, replace=True)
-            #
-            # # For permuted data, independently sample treatment and covariates
-            # # IMPORTANT FIX FOR CONTINUOUS TREATMENTS: use random permutation for pA
-            # perm_idx = np.random.permutation(N)
-            # pA = A[perm_idx]
-            # pX = X[idx]
-            #
-            # # For observed data, use same bootstrap indices
-            # oA = A[idx]
-            # oX = X[idx]
-            #if bootstrap:
-        # Create different indices for different parts
-            p_idx = np.random.choice(N, N, replace=True)  # For permuted X
-            a_idx = np.random.choice(N, N, replace=True)  # For permuted A
-            o_idx = np.random.choice(N, N, replace=True)  # For observed data
+            # Create indices for initial permutation
+            sampled_ids = np.random.permutation(N)
 
-            # Use different random permutations
-            perm_idx = np.random.permutation(N)
-            pA = A[perm_idx][a_idx]  # Permute then bootstrap
-            pX = X[p_idx]
+            # Create bootstrap indices for permuted A
+            a_perm_idx = np.random.choice(N, N, replace=True)
+            pA = A[sampled_ids[a_perm_idx]]  # Sample from permuted treatments
+
+            # Create bootstrap indices for X
+            x_perm_idx = np.random.choice(N, N, replace=True)
+            pX = X[x_perm_idx]  # Sample features
+
+            # Create bootstrap indices for observed data
+            o_idx = np.random.choice(N, N, replace=True)
             oA = A[o_idx]
             oX = X[o_idx]
         else:
-            # Non-bootstrap version
+            # Non-bootstrap version with proper permutation
             perm_idx = np.random.permutation(N)
-            idx = np.random.permutation(N)
             pA = A[perm_idx]
-            pX = X[idx]
-            oA = A[idx]
-            oX = X[idx]
+
+            # Sample X independently
+            x_idx = np.random.permutation(N)
+            pX = X[x_idx]
+
+            # Keep original data intact
+            oA = A
+            oX = X
 
         return {
             'permuted': {'C': 1, 'A': pA, 'X': pX},
@@ -146,7 +189,6 @@ def ate_factory(A, X, params=None):
         }
 
     return factory
-
 
 def att_factory(A, X, params=None):
     """
