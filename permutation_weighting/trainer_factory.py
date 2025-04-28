@@ -41,8 +41,6 @@ def get_trainer_factory(classifier, params=None):
     else:
         raise ValueError(f'Unknown classifier: {classifier}')
 
-
-
 def construct_df(data):
     """
     Constructs a DataFrame from permuted and observed data
@@ -82,7 +80,6 @@ def construct_df(data):
 
     return df
 
-
 def construct_eval_df(A, X):
     """
     Constructs a DataFrame for evaluation
@@ -112,7 +109,6 @@ def construct_eval_df(A, X):
         df[f'A_X{i}'] = df['A'] * df[f'X{i}']
 
     return df
-
 
 def create_batches(data, batch_size):
     """
@@ -182,7 +178,6 @@ def create_batches(data, batch_size):
 
     return batches
 
-
 def logit_factory(params=None):
     """
     Factory for logistic regression trainer
@@ -203,7 +198,7 @@ def logit_factory(params=None):
     # Set default parameters
     default_params = {
         'penalty': 'l2',
-        'C': 1.0,
+        'C': 10.0,
         'solver': 'lbfgs',
         'max_iter': 1000,
         'random_state': 42
@@ -269,7 +264,6 @@ def logit_factory(params=None):
 
     return trainer
 
-
 def boosting_factory(params=None):
     """
     Factory for gradient boosting classifier
@@ -291,7 +285,7 @@ def boosting_factory(params=None):
     default_params = {
         'n_estimators': 100,
         'learning_rate': 0.1,
-        'max_depth': 3,
+        'max_depth': 2,
         'random_state': 42
     }
 
@@ -354,7 +348,6 @@ def boosting_factory(params=None):
         return weight_function
 
     return trainer
-
 
 def sgd_factory(params=None):
     """
@@ -489,7 +482,6 @@ def sgd_factory(params=None):
         return weight_function
 
     return trainer
-
 
 def mlp_factory(params=None):
     """
@@ -628,4 +620,4 @@ def mlp_factory(params=None):
 
     return trainer
 
-
+´
