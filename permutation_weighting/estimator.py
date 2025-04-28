@@ -37,7 +37,7 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
     evaluator_names : list, optional
         Names of evaluators to use
     batch_size : int, optional
-        Size of minibatches for training (currently unused)
+        Size of mini-batches for training SGD and MLP models
 
     Returns
     -------
@@ -55,6 +55,10 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
 
     if evaluator_names is None:
         evaluator_names = ['mse', 'logloss']
+
+    # Add batch_size to classifier_params if provided and classifier supports it
+    if batch_size is not None and classifier in ['sgd', 'mlp']:
+        classifier_params['permute_batch_size'] = batch_size
 
     # Check if data is binary
     is_binary = is_data_binary(A)
@@ -88,7 +92,7 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
         evaluators.append(evaluator_factory(evaluator_name))
 
     # Get trainer factory - now pass A to determine if treatment is binary
-    trainer_factory = get_trainer_factory(classifier, classifier_params, A)
+    trainer_factory = get_trainer_factory(classifier, classifier_params)
 
     # Run replicates
     eval_list = []
@@ -146,3 +150,6 @@ def PW(A, X, classifier='logit', estimand='ATE', classifier_params=None,
     results['convergence_info'] = convergence_info
 
     return results
+
+
+

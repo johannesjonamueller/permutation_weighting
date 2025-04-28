@@ -1,5 +1,5 @@
 """
-Trainer factory for permutation weighting.
+Trainer factory for permutation weighting with batch-then-permute support.
 """
 
 import numpy as np
@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from .data_validation import is_data_binary
 
 
-def get_trainer_factory(classifier, params=None, A=None):
+def get_trainer_factory(classifier, params=None):
     """
     Factory function for creating trainers based on treatment type
 
@@ -22,9 +22,6 @@ def get_trainer_factory(classifier, params=None, A=None):
         Type of model ('logit', 'boosting', 'sgd', 'mlp')
     params : dict, optional
         Model parameters
-    A : array-like, optional
-        Treatment variable to determine if binary or continuous
-
     Returns
     -------
     function
@@ -33,36 +30,16 @@ def get_trainer_factory(classifier, params=None, A=None):
     if params is None:
         params = {}
 
-    # Determine if treatment is binary
-    is_binary = True
-    if A is not None:
-        is_binary = is_data_binary(A)
-
-    if is_binary:
-        # Use classifiers for binary treatments
-        if classifier == 'logit':
-            return logit_factory(params)
-        elif classifier == 'boosting':
-            return boosting_factory(params)
-        elif classifier == 'sgd':
-            return sgd_factory(params)
-        elif classifier == 'mlp':
-            return mlp_factory(params)
-        else:
-            raise ValueError(f'Unknown classifier: {classifier}')
+    if classifier == 'logit':
+        return logit_factory(params)
+    elif classifier == 'boosting':
+        return boosting_factory(params)
+    elif classifier == 'sgd':
+        return sgd_factory(params)
+    elif classifier == 'mlp':
+        return mlp_factory(params)
     else:
-        #  continuous treatments
-        if classifier == 'logit':
-            return linear_factory(params)
-        elif classifier == 'boosting':
-            return boosting_cont_factory(params)
-        elif classifier == 'sgd':
-            return sgd_cont_factory(params)
-        elif classifier == 'mlp':
-            return mlp_cont_factory(params)
-        else:
-            raise ValueError(f'Unknown classifier: {classifier}')
-
+        raise ValueError(f'Unknown classifier: {classifier}')
 
 def construct_df(data):
     """
@@ -103,7 +80,6 @@ def construct_df(data):
 
     return df
 
-
 def construct_eval_df(A, X):
     """
     Constructs a DataFrame for evaluation
@@ -134,8 +110,73 @@ def construct_eval_df(A, X):
 
     return df
 
+def create_batches(data, batch_size):
+    """
+    Create mini-batches from data while preserving distribution characteristics
 
-# ================= BINARY TREATMENT MODELS =================
+    Parameters
+    ----------
+    data : dict
+        Dictionary containing permuted and observed data
+    batch_size : int
+        Size of each mini-batch
+
+    Returns
+    -------
+    list
+        List of data batches with the same structure as the input data
+    """
+    # Calculate total sizes
+    n_permuted = len(data['permuted']['A'])
+    n_observed = len(data['observed']['A'])
+
+    # If batch_size is larger than dataset or not specified, return original data
+    if batch_size is None or batch_size >= n_permuted + n_observed:
+        return [data]
+
+    # Calculate number of samples per batch while maintaining the ratio
+    n_total = n_permuted + n_observed
+    n_batches = max(1, n_total // batch_size)
+
+    # Calculate proportions for permuted and observed
+    perm_ratio = n_permuted / n_total
+    obs_ratio = n_observed / n_total
+
+    perm_per_batch = max(1, int(batch_size * perm_ratio))
+    obs_per_batch = max(1, batch_size - perm_per_batch)
+
+    # Create random indices for shuffling
+    perm_indices = np.random.permutation(n_permuted)
+    obs_indices = np.random.permutation(n_observed)
+
+    batches = []
+
+    # Create batches with proper distribution
+    for i in range(n_batches):
+        perm_start = (i * perm_per_batch) % n_permuted
+        perm_end = min(perm_start + perm_per_batch, n_permuted)
+        perm_idx = perm_indices[perm_start:perm_end]
+
+        obs_start = (i * obs_per_batch) % n_observed
+        obs_end = min(obs_start + obs_per_batch, n_observed)
+        obs_idx = obs_indices[obs_start:obs_end]
+
+        batch = {
+            'permuted': {
+                'C': data['permuted']['C'],
+                'A': data['permuted']['A'][perm_idx],
+                'X': data['permuted']['X'][perm_idx]
+            },
+            'observed': {
+                'C': data['observed']['C'],
+                'A': data['observed']['A'][obs_idx],
+                'X': data['observed']['X'][obs_idx]
+            }
+        }
+
+        batches.append(batch)
+
+    return batches
 
 def logit_factory(params=None):
     """
@@ -157,7 +198,7 @@ def logit_factory(params=None):
     # Set default parameters
     default_params = {
         'penalty': 'l2',
-        'C': 1.0,
+        'C': 10.0,
         'solver': 'lbfgs',
         'max_iter': 1000,
         'random_state': 42
@@ -223,7 +264,6 @@ def logit_factory(params=None):
 
     return trainer
 
-
 def boosting_factory(params=None):
     """
     Factory for gradient boosting classifier
@@ -245,7 +285,7 @@ def boosting_factory(params=None):
     default_params = {
         'n_estimators': 100,
         'learning_rate': 0.1,
-        'max_depth': 3,
+        'max_depth': 2,
         'random_state': 42
     }
 
@@ -309,7 +349,6 @@ def boosting_factory(params=None):
 
     return trainer
 
-
 def sgd_factory(params=None):
     """
     Factory for SGD-based logistic regression trainer
@@ -340,6 +379,10 @@ def sgd_factory(params=None):
         'early_stopping': True,
         'validation_fraction': 0.1
     }
+
+    # Extract batch_size but don't include it in model_params
+    batch_size = params.pop('permute_batch_size', None) if params else None
+
     # Override defaults with provided params
     model_params = {**default_params, **params}
 
@@ -357,27 +400,43 @@ def sgd_factory(params=None):
         function
             A function that computes weights
         """
-        df = construct_df(data)
+        # Create batches if batch_size is specified
+        batches = create_batches(data, batch_size)
 
-        # Separate features and target
-        X_cols = [col for col in df.columns if col != 'C']
-        X_train = df[X_cols]
-        y_train = df['C']
+        # Initialize model
+        model = SGDClassifier(**model_params, warm_start=True)
 
-        # Identify columns to scale: everything except 'A'
+        # Initialize scaler - we'll fit it on the full dataset first
+        full_df = construct_df(data)
+        X_cols = [col for col in full_df.columns if col != 'C']
         to_scale_cols = [col for col in X_cols if col != 'A']
 
-        # Apply scaling to features and interactions, but not A
         scaler = StandardScaler()
-        X_train_scaled = X_train.copy()
-        X_train_scaled[to_scale_cols] = scaler.fit_transform(X_train[to_scale_cols])
+        full_df[to_scale_cols] = scaler.fit_transform(full_df[to_scale_cols])
 
-        model = SGDClassifier(**model_params)
-        model.fit(X_train_scaled, y_train)
+        # Train on each batch sequentially
+        converged = True
+        iterations = 0
 
-        # Store convergence information
-        converged = model.n_iter_ < model.max_iter
-        iterations = model.n_iter_
+        for batch in batches:
+            df = construct_df(batch)
+
+            # Separate features and target
+            X_cols = [col for col in df.columns if col != 'C']
+            X_train = df[X_cols]
+            y_train = df['C']
+
+            # Apply scaling
+            to_scale_cols = [col for col in X_cols if col != 'A']
+            X_train_scaled = X_train.copy()
+            X_train_scaled[to_scale_cols] = scaler.transform(X_train[to_scale_cols])
+
+            # Train on this batch
+            model.fit(X_train_scaled, y_train)
+
+            # Update convergence info
+            converged = converged and model.n_iter_ < model.max_iter
+            iterations = max(iterations, model.n_iter_)
 
         def weight_function(A, X):
             """
@@ -423,7 +482,6 @@ def sgd_factory(params=None):
         return weight_function
 
     return trainer
-
 
 def mlp_factory(params=None):
     """
@@ -448,7 +506,7 @@ def mlp_factory(params=None):
         'activation': 'relu',
         'solver': 'adam',
         'alpha': 0.001,
-        'batch_size': 'auto',
+        'batch_size': 'auto',  # This is sklearn's internal batch size
         'learning_rate': 'adaptive',
         'learning_rate_init': 0.005,
         'max_iter': 500,
@@ -458,12 +516,15 @@ def mlp_factory(params=None):
         'random_state': 42
     }
 
+    # Extract our custom batch_size parameter
+    custom_batch_size = params.pop('permute_batch_size', None) if params else None
+
     # Override defaults with provided params
     model_params = {**default_params, **params}
 
     def trainer(data):
         """
-        Trains a neural network model
+        Trains a neural network model with sequential batch training
 
         Parameters
         ----------
@@ -475,26 +536,43 @@ def mlp_factory(params=None):
         function
             A function that computes weights
         """
-        df = construct_df(data)
+        # Create batches if batch_size is specified
+        batches = create_batches(data, custom_batch_size)
 
-        # Separate features and target
-        X_cols = [col for col in df.columns if col != 'C']
-        X_train = df[X_cols]
-        y_train = df['C']
-
-        # Identify columns to scale: everything except 'A'
+        # Initialize scaler - we'll fit it on the full dataset first
+        full_df = construct_df(data)
+        X_cols = [col for col in full_df.columns if col != 'C']
         to_scale_cols = [col for col in X_cols if col != 'A']
 
-        # Apply scaling to features and interactions, but not A
         scaler = StandardScaler()
-        X_train_scaled = X_train.copy()
-        X_train_scaled[to_scale_cols] = scaler.fit_transform(X_train[to_scale_cols])
+        full_df[to_scale_cols] = scaler.fit_transform(full_df[to_scale_cols])
 
-        model = MLPClassifier(**model_params)
-        model.fit(X_train_scaled, y_train)
+        # Initialize model
+        model = MLPClassifier(**model_params, warm_start=True)
 
-        converged = model.n_iter_ < model.max_iter
-        iterations = model.n_iter_
+        # Train on each batch sequentially
+        converged = True
+        iterations = 0
+
+        for batch in batches:
+            df = construct_df(batch)
+
+            # Separate features and target
+            X_cols = [col for col in df.columns if col != 'C']
+            X_train = df[X_cols]
+            y_train = df['C']
+
+            # Apply scaling
+            to_scale_cols = [col for col in X_cols if col != 'A']
+            X_train_scaled = X_train.copy()
+            X_train_scaled[to_scale_cols] = scaler.transform(X_train[to_scale_cols])
+
+            # Train on this batch
+            model.fit(X_train_scaled, y_train)
+
+            # Update convergence info
+            converged = converged and model.n_iter_ < model.max_iter
+            iterations = max(iterations, model.n_iter_)
 
         def weight_function(A, X):
             """
@@ -535,304 +613,6 @@ def mlp_factory(params=None):
                 'converged': converged,
                 'iterations': iterations
             }
-            return weights
-
-        return weight_function
-
-    return trainer
-
-
-
-# ================= CONTINUOUS TREATMENT MODELS =================
-
-def linear_factory(params=None):
-    """
-    Factory for linear regression trainer for continuous treatments
-
-    Parameters
-    ----------
-    params : dict, optional
-        Linear regression parameters
-
-    Returns
-    -------
-    function
-        A function that trains a linear regression
-    """
-    if params is None:
-        params = {}
-
-    # Set default parameters
-    default_params = {
-        'fit_intercept': True,
-        'n_jobs': -1
-    }
-
-    # Override defaults with provided params
-    model_params = {**default_params, **params}
-
-    def trainer(data):
-        """
-        Trains a linear regression model for continuous treatment
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary containing permuted and observed data
-
-        Returns
-        -------
-        function
-            A function that computes weights
-        """
-        df = construct_df(data)
-
-        # Separate features and target
-        X_cols = [col for col in df.columns if col != 'C']
-        X_train = df[X_cols]
-        y_train = df['C']
-
-        # Train model
-        model = LogisticRegression(max_iter=2000)
-        model.fit(X_train, y_train)
-
-        def weight_function(A, X):
-            """
-            Computes weights from the trained model
-
-            Parameters
-            ----------
-            A : array-like
-                Treatment variable
-            X : array-like
-                Covariate matrix
-
-            Returns
-            -------
-            numpy.ndarray
-                Computed weights
-            """
-            eval_df = construct_eval_df(A, X)
-
-            # Predict probabilities using logistic regression
-            probs = model.predict_proba(eval_df)[:, 1]
-
-            # Clip probabilities to avoid extreme weights
-            probs = np.clip(probs, 0.00001, 0.99999)
-
-            # Compute weights
-            weights = probs / (1 - probs)
-
-            # Normalize weights
-            # Additional trimming of extreme weights
-            ###weights = np.clip(weights, np.percentile(weights, 0.5), np.percentile(weights, 97.5))
-            weights = weights / np.sum(weights) * len(weights)
-            return weights
-
-        return weight_function
-
-    return trainer
-
-
-def boosting_cont_factory(params=None):
-    """
-    Factory for gradient boosting  for continuous treatments
-
-    Parameters
-    ----------
-    params : dict, optional
-        Gradient boosting parameters
-
-    Returns
-    -------
-    function
-        A function that trains a gradient boosting
-    """
-    if params is None:
-        params = {}
-
-    # Set default parameters
-    default_params = {
-        'n_estimators': 100,
-        'learning_rate': 0.1,
-        'max_depth': 3,
-        'random_state': 42
-    }
-
-    # Override defaults with provided params
-    model_params = {**default_params, **params}
-
-    def trainer(data):
-        """
-        Trains a gradient boosting regression model
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary containing permuted and observed data
-
-        Returns
-        -------
-        function
-            A function that computes weights
-        """
-        df = construct_df(data)
-
-        # Separate features and target
-        X_cols = [col for col in df.columns if col != 'C']
-        X_train = df[X_cols]
-        y_train = df['C']
-
-        model = GradientBoostingClassifier(**model_params)
-        model.fit(X_train, y_train)
-
-        def weight_function(A, X):
-            """
-            Computes weights from the trained model
-
-            Parameters
-            ----------
-            A : array-like
-                Treatment variable
-            X : array-like
-                Covariate matrix
-
-            Returns
-            -------
-            numpy.ndarray
-                Computed weights
-            """
-            eval_df = construct_eval_df(A, X)
-
-            # Predict probabilities
-            probs = model.predict_proba(eval_df)[:, 1]
-
-            # Clip probabilities to avoid extreme weights
-            probs = np.clip(probs, 0.00001, 0.99999)
-
-            # Compute weights
-            weights = probs / (1 - probs)
-
-            # Normalize weights
-            # Additional trimming of extreme weights
-            ###weights = np.clip(weights, np.percentile(weights, 0.5), np.percentile(weights, 97.5))
-            weights = weights / np.sum(weights) * len(weights)
-            return weights
-
-        return weight_function
-
-    return trainer
-
-
-def sgd_cont_factory(params=None):
-    """
-    Factory for SGD-based linear regression trainer for continuous treatments
-
-    Parameters
-    ----------
-    params : dict, optional
-        SGD  parameters
-
-    Returns
-    -------
-    function
-        A function that trains an SGD-based linear regression
-    """
-    if params is None:
-        params = {}
-
-    # Set default parameters
-    default_params = {
-        'loss': 'log_loss',  # Changed to log_loss
-        'penalty': 'l2',
-        'alpha': 0.001,
-        'max_iter': 1000,
-        'tol': 1e-4,
-        'learning_rate': 'adaptive',
-        'eta0': 0.01,
-        'random_state': 42,
-        'early_stopping': True
-    }
-
-    # Override defaults with provided params
-    model_params = {**default_params, **params}
-
-    def trainer(data):
-        """
-        Trains an SGD-based linear regression model
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary containing permuted and observed data
-
-        Returns
-        -------
-        function
-            A function that computes weights
-        """
-        df = construct_df(data)
-
-        # Separate features and target
-        X_cols = [col for col in df.columns if col != 'C']
-        X_train = df[X_cols]
-        y_train = df['C']
-
-        # Identify columns to scale: everything except 'A'
-        to_scale_cols = [col for col in X_cols if col != 'A']
-
-        # Apply scaling to features and interactions, but not A
-        scaler = StandardScaler()
-        X_train_scaled = X_train.copy()
-        X_train_scaled[to_scale_cols] = scaler.fit_transform(X_train[to_scale_cols])
-
-        model = SGDClassifier(**model_params)
-        model.fit(X_train_scaled, y_train)
-
-        # Store convergence information
-        converged = model.n_iter_ < model.max_iter
-        iterations = model.n_iter_
-
-        def weight_function(A, X):
-            """
-            Computes weights from the trained model
-
-            Parameters
-            ----------
-            A : array-like
-                Treatment variable
-            X : array-like
-                Covariate matrix
-
-            Returns
-            -------
-            numpy.ndarray
-                Computed weights
-            """
-            eval_df = construct_eval_df(A, X)
-
-            eval_to_scale_cols = [col for col in eval_df.columns if col != 'A']
-            eval_df_scaled = eval_df.copy()
-            eval_df_scaled[eval_to_scale_cols] = scaler.transform(eval_df[eval_to_scale_cols])
-
-            # Predict probabilities
-            probs = model.predict_proba(eval_df_scaled)[:, 1]
-
-            # Clip probabilities to avoid extreme weights
-            probs = np.clip(probs, 0.00001, 0.99999)
-
-            # Compute weights
-            weights = probs / (1 - probs)
-
-            # Normalize weights for stability
-            # Additional trimming of extreme weights
-            ###weights = np.clip(weights, np.percentile(weights, 0.5), np.percentile(weights, 97.5))
-            weights = weights / np.sum(weights) * len(weights)
-            # Attach convergence info
-            weight_function.convergence_info = {
-                'converged': converged,
-                'iterations': iterations
-            }
 
             return weights
 
@@ -840,122 +620,4 @@ def sgd_cont_factory(params=None):
 
     return trainer
 
-
-def mlp_cont_factory(params=None):
-    """
-    Factory for neural network  for continuous treatments
-
-    Parameters
-    ----------
-    params : dict, optional
-        Neural network parameters
-
-    Returns
-    -------
-    function
-        A function that trains a neural network
-    """
-    if params is None:
-        params = {}
-
-    # Set default parameters
-    default_params = {
-        'hidden_layer_sizes': (64, 32),
-        'activation': 'relu',
-        'solver': 'adam',
-        'alpha': 0.001,
-        'batch_size': 'auto',
-        'learning_rate': 'adaptive',
-        'learning_rate_init': 0.005,
-        'max_iter': 500,
-        'early_stopping': True,
-        'validation_fraction': 0.1,
-        'n_iter_no_change': 10,
-        'random_state': 42
-    }
-
-    # Override defaults with provided params
-    model_params = {**default_params, **params}
-
-    def trainer(data):
-        """
-        Trains a neural network regression model
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary containing permuted and observed data
-
-        Returns
-        -------
-        function
-            A function that computes weights
-        """
-        df = construct_df(data)
-
-        # Separate features and target
-        X_cols = [col for col in df.columns if col != 'C']
-        X_train = df[X_cols]
-        y_train = df['C']
-
-        # Identify columns to scale: everything except 'A'
-        to_scale_cols = [col for col in X_cols if col != 'A']
-
-        # Apply scaling to features and interactions, but not A
-        scaler = StandardScaler()
-        X_train_scaled = X_train.copy()
-        X_train_scaled[to_scale_cols] = scaler.fit_transform(X_train[to_scale_cols])
-
-        model = MLPClassifier(**model_params)
-        model.fit(X_train_scaled, y_train)
-
-        converged = model.n_iter_ < model.max_iter
-        iterations = model.n_iter_
-
-        def weight_function(A, X):
-            """
-            Computes weights from the trained model
-
-            Parameters
-            ----------
-            A : array-like
-                Treatment variable
-            X : array-like
-                Covariate matrix
-
-            Returns
-            -------
-            numpy.ndarray
-                Computed weights
-            """
-            eval_df = construct_eval_df(A, X)
-
-            # Scale features and interactions, but not A
-            eval_to_scale_cols = [col for col in eval_df.columns if col != 'A']
-            eval_df_scaled = eval_df.copy()
-            eval_df_scaled[eval_to_scale_cols] = scaler.transform(eval_df[eval_to_scale_cols])
-
-            # Predict probabilities
-            probs = model.predict_proba(eval_df_scaled)[:, 1]
-
-            # Clip probabilities to avoid extreme weights
-            probs = np.clip(probs, 0.00001, 0.99999)
-
-            # Compute weights
-            weights = probs / (1 - probs)
-
-            # Normalize weights for stability
-            # Additional trimming of extreme weights
-            ###weights = np.clip(weights, np.percentile(weights, 0.5), np.percentile(weights, 97.5))
-            weights = weights / np.sum(weights) * len(weights)
-            # Attach convergence info
-            weight_function.convergence_info = {
-                'converged': converged,
-                'iterations': iterations
-            }
-
-            return weights
-
-        return weight_function
-
-    return trainer
+´
