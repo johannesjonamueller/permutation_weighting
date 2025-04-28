@@ -1,6 +1,6 @@
 # Permutation Weighting
 
-A Python implementation of Permutation Weighting (PW) for causal inference, based on the paper by Arbour, Dimmery, and Sondhi (2020).
+A Python implementation of Permutation Weighting (PW) for causal inference, based on the paper Permutation Weighting by David Arbour, Drew Dimmery, Arjun Sondhi (2020) https://arxiv.org/abs/1901.01230
 
 ## Overview
 
